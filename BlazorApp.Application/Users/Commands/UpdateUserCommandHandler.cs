@@ -20,19 +20,33 @@ namespace BlazorApp.Application.Users.Commands
 
           public async Task<bool> Handle(UpdateUserCommand command, CancellationToken cancellationToken)
           {
-               var user = await _context.Users.FindAsync(command.User.Id);
+               var user = await _context.Users.FindAsync(new object[] { command.User.Id }, cancellationToken);
 
                if (user == null)
                     return false;
+
+               // Update user properties
                user.Username = command.User.Username;
-               user.Password = command.User.Password;
                user.Email = command.User.Email;
 
-               _context.Entry(user).State = EntityState.Modified;
-               await _context.SaveChangesAsync(cancellationToken);
-               
-               return true;
+               // Only update password if it's provided (not null or empty)
+               if (!string.IsNullOrWhiteSpace(command.User.Password))
+               {
+                    user.Password = command.User.Password; // In production, hash this!
+               }
 
+               _context.Entry(user).State = EntityState.Modified;
+
+               try
+               {
+                    await _context.SaveChangesAsync(cancellationToken);
+                    return true;
+               }
+               catch (DbUpdateException)
+               {
+                    // Handle potential database errors (e.g., unique constraints)
+                    return false;
+               }
           }
      }
 }

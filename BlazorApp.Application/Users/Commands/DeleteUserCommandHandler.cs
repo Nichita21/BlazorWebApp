@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BlazorApp.Application.Users.Commands
 {
-     public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand, bool>
+     public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand>
      {
           private readonly AppDbContext _context;
 
@@ -17,15 +17,18 @@ namespace BlazorApp.Application.Users.Commands
                _context = context;
           }
 
-          public async Task<bool> Handle(DeleteUserCommand command, CancellationToken cancellationToken)
+          public async Task Handle(DeleteUserCommand command, CancellationToken cancellationToken)
           {
                var user = await _context.Users.FindAsync(command.Id);
 
-               if (user == null)
-                    return false;
-               _context.Users.Remove(user);
-               await _context.SaveChangesAsync(cancellationToken);
-               return true;
+               if (user is not null)
+               {
+                    _context.Users.Remove(user);
+                    await _context.SaveChangesAsync(cancellationToken);
+
+               }     
+               
+               
 
           }
      }

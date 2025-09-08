@@ -11,5 +11,14 @@ namespace BlazorApp.Application.Users.Queries
      public class GetUserByIdQuery : IRequest<UserDTO?>
      {
           public int Id { get; set; }
+
+          // Constructor care primește Id-ul
+          public GetUserByIdQuery(int id)
+          {
+               Id = id;
+          }
+
+          // Constructor fără parametri (opțional)
+          public GetUserByIdQuery() { }
      }
 }

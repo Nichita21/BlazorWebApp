@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 
 namespace BlazorApp.Application.Users.Commands
 {
-     public class DeleteUserCommand : IRequest<bool>
-     {
-          public int Id { get; set; }
-     }
+     public record DeleteUserCommand(int Id) : IRequest;
+     
 }

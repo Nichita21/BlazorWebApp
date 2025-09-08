@@ -1,116 +1,80 @@
 ﻿@page "/users"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @inject HttpClient Http
-@inject NavigationManager NavigationManager
-@inject IJSRuntime JS
-@using BlazorApp.Shared.DTOs
+@inject IJSRuntime JSRuntime
+
 <PageTitle>Users</PageTitle>
 
-<div class="container-fluid">
-     <div class="d-flex justify-content-between align-items-center mb-4">
-          <h1>Users Management</h1>
-          <a class="btn btn-primary" href="/user/edit">
-               <i class="fas fa-plus"></i> Create New User
-          </a>
+<h3>Users</h3>
+
+@if (users is null)
+{
+     <p><em>Loading...</em></p>
+}
+else if (!users.Any())
+{
+     <p><em>No users found.</em></p>
+}
+else
+{
+     <table class="table table-striped">
+          <thead>
+               <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Password</th>
+                    <th>Actions</th>
+               </tr>
+          </thead>
+          <tbody>
+               @foreach (var user in users)
+               {
+                    <tr>
+                         <td>@user.Username</td>
+                         <td>@user.Email</td>
+                         <td>@user.Password</td>
+                         <td>
+                              <button class="btn btn-sm btn-primary" @onclick="() => SelectUserForEdit(user)">Edit</button>
+                              <button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                         </td>
+                    </tr>
+               }
+          </tbody>
+     </table>
+}
+
+<hr />
+
+<h4>@(isEditing ? "Edit User" : "Add New User")</h4>
+
+<EditForm Model="userToEdit" OnValidSubmit="SaveUser">
+     <DataAnnotationsValidator />
+     <ValidationSummary />
+
+     <div class="mb-3">
+          <label class="form-label">Username:</label>
+          <InputText class="form-control" @bind-Value="userToEdit.Username" />
+     </div>
+     <div class="mb-3">
+          <label class="form-label">Email:</label>
+          <InputText class="form-control" @bind-Value="userToEdit.Email" />
+     </div>
+     <div class="mb-3">
+          <label class="form-label">Password:</label>
+          <InputText type="password" class="form-control" @bind-Value="userToEdit.Password" />
      </div>
 
-     @if (!string.IsNullOrEmpty(errorMessage))
+     <button type="submit" class="btn btn-success">Save</button>
+     @if (isEditing)
      {
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-               @errorMessage
-               <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
-          </div>
+          <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
      }
-
-     @if (!string.IsNullOrEmpty(successMessage))
-     {
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-               @successMessage
-               <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
-          </div>
-     }
-
-     @if (users == null)
-     {
-          <div class="text-center p-4">
-               <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-               </div>
-               <p class="mt-2"><em>Loading users...</em></p>
-          </div>
-     }
-     else if (users.Any())
-     {
-          <div class="card">
-               <div class="card-body">
-                    <div class="table-responsive">
-                         <table class="table table-striped table-hover">
-                              <thead class="table-dark">
-                                   <tr>
-                                        <th scope="col">ID</th>
-                                        <th scope="col">Username</th>
-                                        <th scope="col">Email</th>
-                                        <th scope="col" class="text-center">Actions</th>
-                                   </tr>
-                              </thead>
-                              <tbody>
-                                   @foreach (var user in users)
-                                   {
-                                        <tr>
-                                             <td>@user.Id</td>
-                                             <td>@user.Username</td>
-                                             <td>@user.Email</td>
-                                             <td class="text-center">
-                                                  <div class="btn-group" role="group">
-                                                       <a class="btn btn-sm btn-outline-primary"
-                                                          href="/user/edit/@user.Id"
-                                                          title="Edit User">
-                                                            <i class="fas fa-edit"></i> Edit
-                                                       </a>
-                                                       <button class="btn btn-sm btn-outline-danger"
-                                                               @onclick="() => DeleteUser(user.Id)"
-                                                               title="Delete User"
-                                                               disabled="@isDeleting">
-                                                            @if (isDeleting && deletingUserId == user.Id)
-                                                            {
-                                                                 <span class="spinner-border spinner-border-sm me-1"></span>
-                                                            }
-                                                            else
-                                                            {
-                                                                 <i class="fas fa-trash"></i>
-                                                            }
-                                                            Delete
-                                                       </button>
-                                                  </div>
-                                             </td>
-                                        </tr>
-                                   }
-                              </tbody>
-                         </table>
-                    </div>
-               </div>
-          </div>
-
-          <div class="mt-3">
-               <small class="text-muted">Total users: @users.Count</small>
-          </div>
-     }
-     else
-     {
-          <div class="alert alert-info text-center" role="alert">
-               <i class="fas fa-info-circle fa-2x mb-2"></i>
-               <h5>No users found</h5>
-               <p class="mb-0">Get started by creating your first user.</p>
-               <a class="btn btn-primary mt-2" href="/user/edit">Create User</a>
-          </div>
-     }
-</div>
+</EditForm>
 
 @code {
-     private List<UserDTO>? users;
-     private string? errorMessage;
-     private string? successMessage;
-     private bool isDeleting = false;
-     private int? deletingUserId = null;
+     private List<BlazorApp.Shared.DTOs.UserDTO>? users;
+     private BlazorApp.Shared.DTOs.UserDTO userToEdit = new() { Username = "", Email = "", Password = "" };
+     private bool isEditing = false;
 
      protected override async Task OnInitializedAsync()
      {
@@ -121,80 +85,70 @@
      {
           try
           {
-               errorMessage = null;
-               users = await Http.GetFromJsonAsync<List<UserDTO>>("api/users");
-          }
-          catch (HttpRequestException httpEx)
-          {
-               errorMessage = $"Network error: {httpEx.Message}";
-               Console.WriteLine($"HTTP Error loading users: {httpEx}");
+               users = await Http.GetFromJsonAsync<List<BlazorApp.Shared.DTOs.UserDTO>>("api/users");
+               users ??= new List<BlazorApp.Shared.DTOs.UserDTO>();
           }
           catch (Exception ex)
           {
-               errorMessage = $"Error loading users: {ex.Message}";
-               Console.WriteLine($"Error loading users: {ex}");
+               Console.Error.WriteLine($"Error loading users: {ex.Message}");
+               users = new List<BlazorApp.Shared.DTOs.UserDTO>();
+          }
+     }
+
+     private void SelectUserForEdit(BlazorApp.Shared.DTOs.UserDTO user)
+     {
+          userToEdit = new()
+          {
+               Id = user.Id,
+               Username = user.Username,
+               Email = user.Email,
+               Password = user.Password
+          };
+          isEditing = true;
+     }
+
+     private async Task SaveUser()
+     {
+          try
+          {
+               if (isEditing)
+               {
+                    await Http.PutAsJsonAsync($"api/users/{userToEdit.Id}", userToEdit);
+               }
+               else
+               {
+                    await Http.PostAsJsonAsync("api/users", userToEdit);
+               }
+
+               await LoadUsers();
+               CancelEdit();
+          }
+          catch (Exception ex)
+          {
+               Console.Error.WriteLine($"Error saving user: {ex.Message}");
           }
      }
 
      private async Task DeleteUser(int id)
      {
-          if (isDeleting) return; // Prevent multiple simultaneous deletions
-
-          var user = users?.FirstOrDefault(u => u.Id == id);
-          var confirmMessage = user != null
-              ? $"Are you sure you want to delete user '{user.Username}'? This action cannot be undone."
-              : "Are you sure you want to delete this user?";
-
-          if (await ConfirmDelete(confirmMessage))
+          bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this user?");
+          if (confirmed)
           {
-               isDeleting = true;
-               deletingUserId = id;
-               StateHasChanged(); // Update UI to show loading state
-
                try
                {
-                    var response = await Http.DeleteAsync($"api/users/{id}");
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                         await LoadUsers(); // Refresh the list
-                         successMessage = "User deleted successfully.";
-                         errorMessage = null;
-                    }
-                    else
-                    {
-                         var errorContent = await response.Content.ReadAsStringAsync();
-                         errorMessage = $"Error deleting user: {response.ReasonPhrase}. {errorContent}";
-                    }
-               }
-               catch (HttpRequestException httpEx)
-               {
-                    errorMessage = $"Network error deleting user: {httpEx.Message}";
-                    Console.WriteLine($"HTTP Error deleting user: {httpEx}");
+                    await Http.DeleteAsync($"api/users/{id}");
+                    await LoadUsers();
                }
                catch (Exception ex)
                {
-                    errorMessage = $"Error deleting user: {ex.Message}";
-                    Console.WriteLine($"Error deleting user: {ex}");
-               }
-               finally
-               {
-                    isDeleting = false;
-                    deletingUserId = null;
+                    Console.Error.WriteLine($"Error deleting user: {ex.Message}");
                }
           }
      }
 
-     private async Task<bool> ConfirmDelete(string message = "Are you sure you want to delete this user?")
+     private void CancelEdit()
      {
-          try
-          {
-               return await JS.InvokeAsync<bool>("confirm", message);
-          }
-          catch (Exception ex)
-          {
-               Console.WriteLine($"Error showing confirm dialog: {ex}");
-               return false;
-          }
+          userToEdit = new() { Username = "", Email = "", Password = "" };
+          isEditing = false;
      }
 }

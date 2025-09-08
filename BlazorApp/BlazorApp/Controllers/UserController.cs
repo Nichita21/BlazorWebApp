@@ -1,77 +1,65 @@
 ﻿using BlazorApp.Application.Users.Commands;
 using BlazorApp.Application.Users.Queries;
-using BlazorApp.Domain.Entities;
 using BlazorApp.Shared.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BlazorApp.Controllers
+namespace BlazorApp.API.Controllers
 {
      [ApiController]
      [Route("api/[controller]")]
-     public class UserController : ControllerBase
+     public class UsersController : ControllerBase
      {
           private readonly IMediator _mediator;
 
-          public UserController(IMediator mediator)
+          public UsersController(IMediator mediator)
           {
                _mediator = mediator;
           }
 
+          // GET: api/users
           [HttpGet]
-          public async Task<ActionResult<IEnumerable<UserDTO>>> GetAllUsers()
+          public async Task<ActionResult<List<UserDTO>>> GetAllUsers()
           {
-               var result = await _mediator.Send(new GetAllUsersQuery());
-               return Ok(result);
+               var users = await _mediator.Send(new GetAllUsersQuery());
+               return Ok(users);
           }
 
+          // GET: api/users/{id}
           [HttpGet("{id}")]
           public async Task<ActionResult<UserDTO>> GetUser(int id)
           {
-               var result = await _mediator.Send(new GetUserByIdQuery { Id = id });
-
-               if (result == null)
-                    return NotFound();
-
-               return Ok(result);
+               var user = await _mediator.Send(new GetUserByIdQuery(id));
+               if (user == null) return NotFound();
+               return Ok(user);
           }
 
+          // POST: api/users
           [HttpPost]
-          public async Task<ActionResult<UserDTO>> AddUser(UserDTO userDTO)
+          public async Task<ActionResult<UserDTO>> AddUser([FromBody] UserDTO user)
           {
-               var command = new AddUserCommand(userDTO);
-               var userId = await _mediator.Send(command);
-
-               var addedUser = await _mediator.Send(new GetUserByIdQuery { Id = userId });
-               return CreatedAtAction(nameof(GetUser), new { id = userId }, addedUser);
+               var newUser = await _mediator.Send(new AddUserCommand(user));
+               return CreatedAtAction(nameof(GetUser), new { id = newUser.Id }, newUser);
           }
 
+          // PUT: api/users/{id}
           [HttpPut("{id}")]
-          public async Task<IActionResult> PutUser(int id, UserDTO userDTO)
+          public async Task<ActionResult<UserDTO>> UpdateUser(int id, [FromBody] UserDTO user)
           {
-               if (id != userDTO.Id)
-                    return BadRequest();
+               if (id != user.Id) return BadRequest("User ID mismatch");
 
-               var command = new UpdateUserCommand(userDTO);
-               var result = await _mediator.Send(command);
+               var updatedUser = await _mediator.Send(new UpdateUserCommand(user));
+               if (updatedUser == null) return NotFound();
 
-               if (!result)
-                    return NotFound();
-
-               return NoContent();
+               return Ok(updatedUser);
           }
 
+          // DELETE: api/users/{id}
           [HttpDelete("{id}")]
           public async Task<IActionResult> DeleteUser(int id)
           {
-               var command = new DeleteUserCommand { Id = id };
-               var result = await _mediator.Send(command);
-
-               if (!result)
-                    return NotFound();
-
+               await _mediator.Send(new DeleteUserCommand(id));
                return NoContent();
           }
      }
 }
-

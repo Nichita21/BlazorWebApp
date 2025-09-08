@@ -26,8 +26,8 @@ namespace BlazorApp.Application.Users.Queries
                     {
                          Id = p.Id,
                          Username = p.Username,
-                         Password = p.Password,
-                         Email = p.Email
+                         Email = p.Email,
+                         Password = null
                     })
                     .ToListAsync(cancellationToken);
 
