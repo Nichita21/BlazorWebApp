@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BlazorApp.Application.Users.Queries
 {
-     public class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, UserDTO>
+     public class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, UserDTO?>
      {
           private readonly AppDbContext _context;
 

@@ -1,0 +1,114 @@
+﻿@page "/products"
+@rendermode InteractiveWebAssembly
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@using BlazorApp.Shared.DTOs
+
+<PageTitle>Users</PageTitle>
+<h1>Users</h1>
+
+
+<p>
+     <a class="btn btn-primary" href="/user/edit">Create New User</a>
+</p>
+
+@if (users == null)
+{
+     <p><em>Loading...</em></p>
+}
+else if (users.Any())
+{
+     <table class="table table-striped">
+          <thead>
+               <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Password</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+               </tr>
+          </thead>
+          <tbody>
+               @foreach (var user in users)
+               {
+                    <tr>
+                         <td>@user.Id</td>
+                         <td>@user.Username</td>
+                         <td>@user.Password</td>
+                         <td>@user.Email</td>
+                         <td>
+                              <a class="btn btn-sm btn-outline-primary" href="/user/edit/@user.Id">Edit</a>
+                              <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                         </td>
+                    </tr>
+               }
+          </tbody>
+     </table>
+}
+else
+{
+     <p><em>No users found.</em></p>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+     <div class="alert alert-danger" role="alert">
+          @errorMessage
+     </div>
+}
+
+@code {
+     private List<UserDTO>? users;
+     private string? errorMessage;
+
+     protected override async Task OnInitializedAsync()
+     {
+          await LoadUsers();
+     }
+
+     private async Task LoadUsers()
+     {
+          try
+          {
+               users = await Http.GetFromJsonAsync<List<UserDTO>>("api/users");
+               errorMessage = null;
+          }
+          catch (Exception ex)
+          {
+               errorMessage = $"Error loading users: {ex.Message}";
+               Console.WriteLine(errorMessage);
+          }
+     }
+
+     private async Task DeleteUser(int id)
+     {
+          if (await ConfirmDelete())
+          {
+               try
+               {
+                    var response = await Http.DeleteAsync($"api/users/{id}");
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                         await LoadUsers(); // Refresh the list
+                         errorMessage = null;
+                    }
+                    else
+                    {
+                         errorMessage = $"Error deleting user: {response.ReasonPhrase}";
+                    }
+               }
+               catch (Exception ex)
+               {
+                    errorMessage = $"Error deleting user: {ex.Message}";
+                    Console.WriteLine(errorMessage);
+               }
+          }
+     }
+
+     private async Task<bool> ConfirmDelete()
+     {
+          return await Task.FromResult(true);
+     }
+}
+

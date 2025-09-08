@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BlazorApp.Application.Users.Queries
 {
-     public class GetUserByIdQuery : IRequest<UserDTO>
+     public class GetUserByIdQuery : IRequest<UserDTO?>
      {
           public int Id { get; set; }
      }
