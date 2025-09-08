@@ -2,12 +2,14 @@ using BlazorApp.Client.Pages;
 using BlazorApp.Components;
 using BlazorApp.Components.Account;
 using BlazorApp.Data;
+using BlazorApp.Infrastructure;
 using BlazorApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents()

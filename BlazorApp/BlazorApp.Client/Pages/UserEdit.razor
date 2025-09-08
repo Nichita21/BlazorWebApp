@@ -1,97 +1,287 @@
 ﻿@page "/user/edit"
-@page "/user/edit/{id:int}"
-@rendermode InteractiveWebAssembly
+@page "/user/edit/{Id:int}"
 @using BlazorApp.Shared.DTOs
+@using System.ComponentModel.DataAnnotations
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 
-@if (Id.HasValue)
-{
-     <PageTitle>Edit User</PageTitle>
-     <h1>Edit User</h1>
-}
-else
-{
-     <PageTitle>Create User</PageTitle>
-     <h1>Create User</h1>
-}
+<div class="container">
+     <div class="row justify-content-center">
+          <div class="col-md-8 col-lg-6">
+               <div class="card">
+                    <div class="card-header">
+                         @if (Id.HasValue)
+                         {
+                              <PageTitle>Edit User</PageTitle>
+                              <h3 class="mb-0"><i class="fas fa-edit"></i> Edit User</h3>
+                         }
+                         else
+                         {
+                              <PageTitle>Create User</PageTitle>
+                              <h3 class="mb-0"><i class="fas fa-user-plus"></i> Create User</h3>
+                         }
+                    </div>
 
-@if (user is not null)
-{
-     <EditForm Model="@user" OnValidSubmit="HandleValidSubmit">
-          <DataAnnotationsValidator />
+                    <div class="card-body">
+                         @if (!string.IsNullOrEmpty(errorMessage))
+                         {
+                              <div class="alert alert-danger alert-dismissible fade show">
+                                   <i class="fas fa-exclamation-triangle"></i> @errorMessage
+                                   <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                              </div>
+                         }
 
-          <div class="mb-3">
-               <label for="Username" class="form-label">Username</label>
-               <InputText id="Username" @bind-Value="user.Username" class="form-control" />
-               <ValidationMessage For="@(() => user.Username)" />
+                         @if (user != null && !isLoading)
+                         {
+                              <EditForm Model="@user" OnValidSubmit="HandleValidSubmit" FormName="UserForm">
+                                   <DataAnnotationsValidator />
+                                   <ValidationSummary class="alert alert-danger" />
+
+                                   <div class="mb-3">
+                                        <label for="Username" class="form-label">
+                                             Username <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="Username"
+                                                   @bind-Value="user.Username"
+                                                   class="form-control"
+                                                   placeholder="Enter username"
+                                                   disabled="@isSaving" />
+                                        <ValidationMessage For="@(() => user.Username)" class="text-danger" />
+                                   </div>
+
+                                   <div class="mb-3">
+                                        <label for="Email" class="form-label">
+                                             Email <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText id="Email"
+                                                   type="email"
+                                                   @bind-Value="user.Email"
+                                                   class="form-control"
+                                                   placeholder="Enter email address"
+                                                   disabled="@isSaving" />
+                                        <ValidationMessage For="@(() => user.Email)" class="text-danger" />
+                                   </div>
+
+                                   <div class="mb-3">
+                                        <label for="Password" class="form-label">
+                                             Password @(Id.HasValue ? "(leave blank to keep current)" : "*")
+                                        </label>
+                                        <InputText id="Password"
+                                                   type="password"
+                                                   @bind-Value="user.Password"
+                                                   class="form-control"
+                                                   placeholder="@(Id.HasValue ? "Enter new password (optional)" : "Enter password")"
+                                                   disabled="@isSaving" />
+                                        <ValidationMessage For="@(() => user.Password)" class="text-danger" />
+                                        @if (!Id.HasValue)
+                                        {
+                                             <div class="form-text">Password must be at least 6 characters long.</div>
+                                        }
+                                   </div>
+
+                                   <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="button"
+                                                class="btn btn-secondary me-md-2"
+                                                @onclick="Cancel"
+                                                disabled="@isSaving">
+                                             <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                        <button type="submit"
+                                                class="btn btn-primary"
+                                                disabled="@isSaving">
+                                             @if (isSaving)
+                                             {
+                                                  <span class="spinner-border spinner-border-sm me-2"></span>
+                                                  <span>Saving...</span>
+                                             }
+                                             else
+                                             {
+                                                  <i class="fas fa-save"></i>
+                                                  <span>@(Id.HasValue ? "Update" : "Create") User</span>
+                                             }
+                                        </button>
+                                   </div>
+                              </EditForm>
+                         }
+                         else if (isLoading)
+                         {
+                              <div class="text-center p-4">
+                                   <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                   </div>
+                                   <p class="mt-2"><em>Loading user data...</em></p>
+                              </div>
+                         }
+                         else
+                         {
+                              <div class="alert alert-warning">
+                                   <i class="fas fa-exclamation-triangle"></i>
+                                   Failed to load user data. Please try refreshing the page.
+                              </div>
+                         }
+                    </div>
+               </div>
           </div>
-
-          <div class="mb-3">
-               <label for="Password" class="form-label">Password</label>
-               <InputText id="Password" @bind-Value="user.Password" class="form-control" />
-          </div>
-
-          <div class="mb-3">
-               <label for="Email" class="form-label">Email</label>
-               <InputText id="model" @bind-Value="user.Email" class="form-control" />
-          </div>
-
-          <button type="submit" class="btn btn-primary">Save</button>
-          <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
-     </EditForm>
-}
-else
-{
-     <p><em>Loading...</em></p>
-}
+     </div>
+</div>
 
 @code {
-     [Parameter]
-     public int? Id { get; set; }
+     [Parameter] public int? Id { get; set; }
 
-     private UserDTO? user;
+     private UserEditDTO? user;
      private string? errorMessage;
+     private bool isLoading = true;
+     private bool isSaving = false;
 
      protected override async Task OnParametersSetAsync()
      {
-          if (Id.HasValue)
+          await LoadUser();
+     }
+
+     private async Task LoadUser()
+     {
+          isLoading = true;
+          errorMessage = null;
+
+          try
           {
-               user = await Http.GetFromJsonAsync<UserDTO>($"api/users/{Id.Value}");
+               if (Id.HasValue)
+               {
+                    // Load existing user for editing
+                    var existingUser = await Http.GetFromJsonAsync<UserDTO>($"api/users/{Id.Value}");
+                    if (existingUser != null)
+                    {
+                         user = new UserEditDTO
+                         {
+                              Id = existingUser.Id,
+                              Username = existingUser.Username,
+                              Email = existingUser.Email,
+                              Password = "" // Don't populate password for security
+                         };
+                    }
+                    else
+                    {
+                         errorMessage = "User not found.";
+                         user = null;
+                    }
+               }
+               else
+               {
+                    // Create new user
+                    user = new UserEditDTO();
+               }
           }
-          else
+          catch (HttpRequestException httpEx)
           {
-               user = new UserDTO();
+               errorMessage = $"Network error: {httpEx.Message}";
+               Console.WriteLine($"HTTP Error loading user: {httpEx}");
+               user = null;
+          }
+          catch (Exception ex)
+          {
+               errorMessage = $"Error loading user: {ex.Message}";
+               Console.WriteLine($"Error loading user: {ex}");
+               user = null;
+          }
+          finally
+          {
+               isLoading = false;
           }
      }
 
      private async Task HandleValidSubmit()
      {
-          HttpResponseMessage response;
+          if (user == null || isSaving) return;
 
-          if (Id.HasValue)
-          {
-               user!.Id = Id.Value;
-               response = await Http.PutAsJsonAsync($"api/users/{Id.Value}", user);
-          }
-          else
-          {
-               response = await Http.PostAsJsonAsync("api/users", user);
-          }
+          isSaving = true;
+          errorMessage = null;
 
-          if (response.IsSuccessStatusCode)
+          try
           {
-               NavigationManager.NavigateTo("/users");
+               HttpResponseMessage response;
+
+               if (Id.HasValue)
+               {
+                    // Update existing user
+                    var updateUser = new UserDTO
+                    {
+                         Id = Id.Value,
+                         Username = user.Username!,
+                         Email = user.Email!,
+                         Password = string.IsNullOrWhiteSpace(user.Password) ? null : user.Password
+                    };
+
+                    response = await Http.PutAsJsonAsync($"api/users/{Id.Value}", updateUser);
+               }
+               else
+               {
+                    // Create new user
+                    var newUser = new UserDTO
+                    {
+                         Username = user.Username!,
+                         Email = user.Email!,
+                         Password = user.Password!
+                    };
+
+                    response = await Http.PostAsJsonAsync("api/users", newUser);
+               }
+
+               if (response.IsSuccessStatusCode)
+               {
+                    NavigationManager.NavigateTo("/users");
+               }
+               else
+               {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Error saving user: {response.ReasonPhrase}. {errorContent}";
+               }
           }
-          else
+          catch (HttpRequestException httpEx)
           {
-               errorMessage = $"Error saving user: {response.ReasonPhrase}";
-               Console.WriteLine(errorMessage);
+               errorMessage = $"Network error saving user: {httpEx.Message}";
+               Console.WriteLine($"HTTP Error saving user: {httpEx}");
+          }
+          catch (Exception ex)
+          {
+               errorMessage = $"Error saving user: {ex.Message}";
+               Console.WriteLine($"Error saving user: {ex}");
+          }
+          finally
+          {
+               isSaving = false;
           }
      }
 
      private void Cancel()
      {
           NavigationManager.NavigateTo("/users");
+     }
+
+     // DTO specific for editing to handle password validation differently
+     public class UserEditDTO
+     {
+          public int Id { get; set; }
+
+          [Required(ErrorMessage = "Username is required")]
+          [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+          public string? Username { get; set; }
+
+          [Required(ErrorMessage = "Email is required")]
+          [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+          [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+          public string? Email { get; set; }
+
+          [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
+          public string? Password { get; set; }
+
+          // Custom validation for new users requiring password
+          public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+          {
+               // If this is a new user (Id == 0) and password is empty, it's invalid
+               if (Id == 0 && string.IsNullOrWhiteSpace(Password))
+               {
+                    yield return new ValidationResult("Password is required for new users", new[] { nameof(Password) });
+               }
+          }
      }
 }

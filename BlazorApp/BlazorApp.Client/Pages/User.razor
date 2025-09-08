@@ -1,65 +1,116 @@
-﻿@page "/products"
-@rendermode InteractiveWebAssembly
+﻿@page "/users"
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 @using BlazorApp.Shared.DTOs
-
 <PageTitle>Users</PageTitle>
-<h1>Users</h1>
 
-
-<p>
-     <a class="btn btn-primary" href="/user/edit">Create New User</a>
-</p>
-
-@if (users == null)
-{
-     <p><em>Loading...</em></p>
-}
-else if (users.Any())
-{
-     <table class="table table-striped">
-          <thead>
-               <tr>
-                    <th>ID</th>
-                    <th>Username</th>
-                    <th>Password</th>
-                    <th>Email</th>
-                    <th>Actions</th>
-               </tr>
-          </thead>
-          <tbody>
-               @foreach (var user in users)
-               {
-                    <tr>
-                         <td>@user.Id</td>
-                         <td>@user.Username</td>
-                         <td>@user.Password</td>
-                         <td>@user.Email</td>
-                         <td>
-                              <a class="btn btn-sm btn-outline-primary" href="/user/edit/@user.Id">Edit</a>
-                              <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => DeleteUser(user.Id)">Delete</button>
-                         </td>
-                    </tr>
-               }
-          </tbody>
-     </table>
-}
-else
-{
-     <p><em>No users found.</em></p>
-}
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-     <div class="alert alert-danger" role="alert">
-          @errorMessage
+<div class="container-fluid">
+     <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1>Users Management</h1>
+          <a class="btn btn-primary" href="/user/edit">
+               <i class="fas fa-plus"></i> Create New User
+          </a>
      </div>
-}
+
+     @if (!string.IsNullOrEmpty(errorMessage))
+     {
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+               @errorMessage
+               <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+          </div>
+     }
+
+     @if (!string.IsNullOrEmpty(successMessage))
+     {
+          <div class="alert alert-success alert-dismissible fade show" role="alert">
+               @successMessage
+               <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+          </div>
+     }
+
+     @if (users == null)
+     {
+          <div class="text-center p-4">
+               <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+               </div>
+               <p class="mt-2"><em>Loading users...</em></p>
+          </div>
+     }
+     else if (users.Any())
+     {
+          <div class="card">
+               <div class="card-body">
+                    <div class="table-responsive">
+                         <table class="table table-striped table-hover">
+                              <thead class="table-dark">
+                                   <tr>
+                                        <th scope="col">ID</th>
+                                        <th scope="col">Username</th>
+                                        <th scope="col">Email</th>
+                                        <th scope="col" class="text-center">Actions</th>
+                                   </tr>
+                              </thead>
+                              <tbody>
+                                   @foreach (var user in users)
+                                   {
+                                        <tr>
+                                             <td>@user.Id</td>
+                                             <td>@user.Username</td>
+                                             <td>@user.Email</td>
+                                             <td class="text-center">
+                                                  <div class="btn-group" role="group">
+                                                       <a class="btn btn-sm btn-outline-primary"
+                                                          href="/user/edit/@user.Id"
+                                                          title="Edit User">
+                                                            <i class="fas fa-edit"></i> Edit
+                                                       </a>
+                                                       <button class="btn btn-sm btn-outline-danger"
+                                                               @onclick="() => DeleteUser(user.Id)"
+                                                               title="Delete User"
+                                                               disabled="@isDeleting">
+                                                            @if (isDeleting && deletingUserId == user.Id)
+                                                            {
+                                                                 <span class="spinner-border spinner-border-sm me-1"></span>
+                                                            }
+                                                            else
+                                                            {
+                                                                 <i class="fas fa-trash"></i>
+                                                            }
+                                                            Delete
+                                                       </button>
+                                                  </div>
+                                             </td>
+                                        </tr>
+                                   }
+                              </tbody>
+                         </table>
+                    </div>
+               </div>
+          </div>
+
+          <div class="mt-3">
+               <small class="text-muted">Total users: @users.Count</small>
+          </div>
+     }
+     else
+     {
+          <div class="alert alert-info text-center" role="alert">
+               <i class="fas fa-info-circle fa-2x mb-2"></i>
+               <h5>No users found</h5>
+               <p class="mb-0">Get started by creating your first user.</p>
+               <a class="btn btn-primary mt-2" href="/user/edit">Create User</a>
+          </div>
+     }
+</div>
 
 @code {
      private List<UserDTO>? users;
      private string? errorMessage;
+     private string? successMessage;
+     private bool isDeleting = false;
+     private int? deletingUserId = null;
 
      protected override async Task OnInitializedAsync()
      {
@@ -70,20 +121,36 @@ else
      {
           try
           {
-               users = await Http.GetFromJsonAsync<List<UserDTO>>("api/users");
                errorMessage = null;
+               users = await Http.GetFromJsonAsync<List<UserDTO>>("api/users");
+          }
+          catch (HttpRequestException httpEx)
+          {
+               errorMessage = $"Network error: {httpEx.Message}";
+               Console.WriteLine($"HTTP Error loading users: {httpEx}");
           }
           catch (Exception ex)
           {
                errorMessage = $"Error loading users: {ex.Message}";
-               Console.WriteLine(errorMessage);
+               Console.WriteLine($"Error loading users: {ex}");
           }
      }
 
      private async Task DeleteUser(int id)
      {
-          if (await ConfirmDelete())
+          if (isDeleting) return; // Prevent multiple simultaneous deletions
+
+          var user = users?.FirstOrDefault(u => u.Id == id);
+          var confirmMessage = user != null
+              ? $"Are you sure you want to delete user '{user.Username}'? This action cannot be undone."
+              : "Are you sure you want to delete this user?";
+
+          if (await ConfirmDelete(confirmMessage))
           {
+               isDeleting = true;
+               deletingUserId = id;
+               StateHasChanged(); // Update UI to show loading state
+
                try
                {
                     var response = await Http.DeleteAsync($"api/users/{id}");
@@ -91,24 +158,43 @@ else
                     if (response.IsSuccessStatusCode)
                     {
                          await LoadUsers(); // Refresh the list
+                         successMessage = "User deleted successfully.";
                          errorMessage = null;
                     }
                     else
                     {
-                         errorMessage = $"Error deleting user: {response.ReasonPhrase}";
+                         var errorContent = await response.Content.ReadAsStringAsync();
+                         errorMessage = $"Error deleting user: {response.ReasonPhrase}. {errorContent}";
                     }
+               }
+               catch (HttpRequestException httpEx)
+               {
+                    errorMessage = $"Network error deleting user: {httpEx.Message}";
+                    Console.WriteLine($"HTTP Error deleting user: {httpEx}");
                }
                catch (Exception ex)
                {
                     errorMessage = $"Error deleting user: {ex.Message}";
-                    Console.WriteLine(errorMessage);
+                    Console.WriteLine($"Error deleting user: {ex}");
+               }
+               finally
+               {
+                    isDeleting = false;
+                    deletingUserId = null;
                }
           }
      }
 
-     private async Task<bool> ConfirmDelete()
+     private async Task<bool> ConfirmDelete(string message = "Are you sure you want to delete this user?")
      {
-          return await Task.FromResult(true);
+          try
+          {
+               return await JS.InvokeAsync<bool>("confirm", message);
+          }
+          catch (Exception ex)
+          {
+               Console.WriteLine($"Error showing confirm dialog: {ex}");
+               return false;
+          }
      }
 }
-
